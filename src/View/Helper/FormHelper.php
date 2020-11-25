@@ -1,17 +1,95 @@
 <?php
+declare(strict_types=1);
 
 namespace BootstrapUI\View\Helper;
 
 use Cake\Core\Configure\Engine\PhpConfig;
 use Cake\Utility\Hash;
+use Cake\Utility\Inflector;
 use Cake\View\Helper\FormHelper as Helper;
 use Cake\View\View;
 use InvalidArgumentException;
 
 class FormHelper extends Helper
 {
-
     use OptionsAwareTrait;
+
+    /**
+     * The default feedback style.
+     *
+     * @var string
+     */
+    public const FEEDBACK_STYLE_DEFAULT = 'default';
+
+    /**
+     * The tooltip feedback style.
+     *
+     * @var string
+     */
+    public const FEEDBACK_STYLE_TOOLTIP = 'tooltip';
+
+    /**
+     * Absolute positioning.
+     *
+     * @var string
+     */
+    public const POSITION_ABSOLUTE = 'absolute';
+
+    /**
+     * Fixed positioning.
+     *
+     * @var string
+     */
+    public const POSITION_FIXED = 'fixed';
+
+    /**
+     * Relative positioning.
+     *
+     * @var string
+     */
+    public const POSITION_RELATIVE = 'relative';
+
+    /**
+     * Static positioning.
+     *
+     * @var string
+     */
+    public const POSITION_STATIC = 'static';
+
+    /**
+     * Sticky positioning.
+     *
+     * @var string
+     */
+    public const POSITION_STICKY = 'sticky';
+
+    /**
+     * Form alignment types.
+     *
+     * @var array
+     */
+    public const ALIGN_TYPES = ['default', 'horizontal', 'inline'];
+
+    /**
+     * Default alignment.
+     *
+     * @var string
+     */
+    public const ALIGN_DEFAULT = 'default';
+
+    /**
+     * Horizontal alignment.
+     *
+     * @var string
+     */
+    public const ALIGN_HORIZONTAL = 'horizontal';
+
+    /**
+     * Inlline alignment.
+     *
+     * @var string
+     */
+    public const ALIGN_INLINE = 'inline';
 
     /**
      * Set on `Form::create()` to tell if the type of alignment used (i.e. horizontal).
@@ -28,30 +106,80 @@ class FormHelper extends Helper
     protected $_grid;
 
     /**
-     * The method to use when creating a control element for a form
-     *
-     * @var string
-     */
-    protected $_controlMethod = 'input';
-
-    /**
      * Default Bootstrap string templates.
      *
      * @var array
      */
     protected $_templates = [
-        'dateWidget' => '<ul class="list-inline"><li class="year">{{year}}</li><li class="month">{{month}}</li><li class="day">{{day}}</li><li class="hour">{{hour}}</li><li class="minute">{{minute}}</li><li class="second">{{second}}</li><li class="meridian">{{meridian}}</li></ul>',
-        'error' => '<div class="help-block">{{content}}</div>',
+        'error' => '<div class="invalid-feedback">{{content}}</div>',
+        'errorTooltip' => '<div class="invalid-tooltip">{{content}}</div>',
         'label' => '<label{{attrs}}>{{text}}{{tooltip}}</label>',
-        'help' => '<div class="help-block">{{content}}</div>',
-        'tooltip' => '<span data-toggle="tooltip" title="{{content}}" class="glyphicon glyphicon-info-sign"></span>',
+        'help' => '<small{{attrs}} class="form-text text-muted">{{content}}</small>',
+        'tooltip' => '<span data-toggle="tooltip" title="{{content}}" class="fas fa-info-circle"></span>',
+        'datetimeContainer' => '<div class="form-group {{type}}{{required}}" role="group" ' .
+                'aria-labelledby="{{groupId}}">{{content}}{{help}}</div>',
+        'datetimeContainerError' =>
+            '<div class="form-group {{formGroupPosition}}{{type}}{{required}} is-invalid" ' .
+                'role="group" aria-labelledby="{{groupId}}">{{content}}{{error}}{{help}}</div>',
+        'datetimeLabel' => '<label id="{{groupId}}">{{text}}{{tooltip}}</label>',
         'inputContainer' => '<div class="form-group {{type}}{{required}}">{{content}}{{help}}</div>',
-        'inputContainerError' => '<div class="form-group {{type}}{{required}} has-error">{{content}}{{error}}{{help}}</div>',
-        'radioInlineFormGroup' => '{{label}}<div class="radio-inline-wrapper">{{input}}</div>',
-        'radioNestingLabel' => '<div class="radio">{{hidden}}<label{{attrs}}>{{input}}{{text}}{{tooltip}}</label></div>',
-        'staticControl' => '<p class="form-control-static">{{content}}</p>',
-        'inputGroupAddon' => '<span class="{{class}}">{{content}}</span>',
-        'inputGroupContainer' => '<div class="input-group">{{prepend}}{{content}}{{append}}</div>',
+        'inputContainerError' =>
+            '<div class="form-group {{formGroupPosition}}{{type}}{{required}} is-invalid">' .
+                '{{content}}{{error}}{{help}}</div>',
+        'checkboxContainer' => '<div class="form-group form-check {{type}}{{required}}">{{content}}{{help}}</div>',
+        'checkboxContainerError' =>
+            '<div class="form-group form-check {{formGroupPosition}}{{type}}{{required}} is-invalid">' .
+                '{{content}}{{error}}{{help}}</div>',
+        'customCheckboxContainer' => '<div class="form-group custom-control custom-checkbox ' .
+                '{{type}}{{required}}">{{content}}{{help}}</div>',
+        'customCheckboxContainerError' =>
+            '<div class="form-group custom-control custom-checkbox ' .
+                '{{formGroupPosition}}{{type}}{{required}} is-invalid">{{content}}{{error}}{{help}}</div>',
+        'checkboxInlineContainer' => '<div class="form-check form-check-inline {{type}}{{required}}">' .
+                '{{content}}</div>',
+        'checkboxInlineContainerError' => '<div class="form-check form-check-inline {{type}}{{required}} ' .
+                'is-invalid">{{content}}</div>',
+        'customCheckboxInlineContainer' => '<div class="form-group custom-control custom-checkbox ' .
+                'custom-control-inline {{type}}{{required}}">{{content}}</div>',
+        'customCheckboxInlineContainerError' =>
+            '<div class="form-group custom-control custom-checkbox custom-control-inline ' .
+                '{{formGroupPosition}}{{type}}{{required}} is-invalid">{{content}}</div>',
+        'checkboxFormGroup' => '{{input}}{{label}}',
+        'checkboxWrapper' => '<div class="form-check">{{label}}</div>',
+        'checkboxInlineWrapper' => '<div class="form-check form-check-inline">{{label}}</div>',
+        'customCheckboxWrapper' => '<div class="custom-control custom-checkbox">{{label}}</div>',
+        'customCheckboxInlineWrapper' => '<div class="custom-control custom-checkbox custom-control-inline">' .
+                '{{label}}</div>',
+        'radioContainer' => '<div class="form-group {{type}}{{required}}" role="group" ' .
+                'aria-labelledby="{{groupId}}">{{content}}{{help}}</div>',
+        'radioContainerError' =>
+            '<div class="form-group {{formGroupPosition}}{{type}}{{required}} is-invalid" role="group" ' .
+                'aria-labelledby="{{groupId}}">{{content}}{{error}}{{help}}</div>',
+        'radioLabel' => '<label id="{{groupId}}" class="d-block">{{text}}{{tooltip}}</label>',
+        'radioWrapper' => '<div class="form-check">{{hidden}}{{label}}</div>',
+        'radioInlineWrapper' => '<div class="form-check form-check-inline">{{label}}</div>',
+        'customRadioWrapper' => '<div class="custom-control custom-radio">{{hidden}}{{label}}</div>',
+        'customRadioInlineWrapper' => '<div class="custom-control custom-radio custom-control-inline">' .
+                '{{hidden}}{{label}}</div>',
+        'staticControl' => '<p class="form-control-plaintext">{{content}}</p>',
+        'inputGroupAddon' => '<div class="{{class}}">{{content}}</div>',
+        'inputGroupContainer' => '<div{{attrs}}>{{prepend}}{{content}}{{append}}</div>',
+        'inputGroupText' => '<span class="input-group-text">{{content}}</span>',
+        'multicheckboxContainer' => '<div class="form-group {{type}}{{required}}" role="group" ' .
+                'aria-labelledby="{{groupId}}">{{content}}{{help}}</div>',
+        'multicheckboxContainerError' =>
+            '<div class="form-group {{formGroupPosition}}{{type}}{{required}} is-invalid" role="group" ' .
+                'aria-labelledby="{{groupId}}">{{content}}{{error}}{{help}}</div>',
+        'multicheckboxLabel' => '<label id="{{groupId}}" class="d-block">{{text}}{{tooltip}}</label>',
+        'multicheckboxWrapper' => '<fieldset class="form-group">{{content}}</fieldset>',
+        'multicheckboxTitle' => '<legend class="col-form-label pt-0">{{text}}</legend>',
+        'customFileLabel' => '<label class="custom-file-label"{{attrs}}>{{text}}{{tooltip}}</label>',
+        'customFileFormGroup' => '<div class="custom-file {{invalid}}">{{input}}{{label}}</div>',
+        'customFileInputGroupFormGroup' => '{{input}}',
+        'customFileInputGroupContainer' =>
+            '<div{{attrs}}>{{prepend}}<div class="custom-file {{invalid}}">{{content}}{{label}}</div>{{append}}</div>',
+        'nestingLabel' => '{{hidden}}{{input}}<label{{attrs}}>{{text}}{{tooltip}}</label>',
+        'nestingLabelNestedInput' => '{{hidden}}<label{{attrs}}>{{input}}{{text}}{{tooltip}}</label>',
     ];
 
     /**
@@ -61,25 +189,79 @@ class FormHelper extends Helper
      */
     protected $_templateSet = [
         'default' => [
-            'checkboxContainer' => '<div class="checkbox">{{content}}{{help}}</div>',
-            'checkboxContainerError' => '<div class="checkbox has-error">{{content}}{{error}}{{help}}</div>',
         ],
         'inline' => [
             'label' => '<label class="sr-only"{{attrs}}>{{text}}{{tooltip}}</label>',
-            'inputContainer' => '{{content}}'
+            'help' => '<small{{attrs}} class="sr-only form-text text-muted">{{content}}</small>',
+            'checkboxInlineContainerError' =>
+                '<div class="form-check form-check-inline {{formGroupPosition}}{{type}}{{required}} ' .
+                    'is-invalid">{{content}}{{error}}</div>',
+            'customCheckboxInlineContainerError' =>
+                '<div class="form-group custom-control custom-checkbox custom-control-inline ' .
+                    '{{formGroupPosition}}{{type}}{{required}} is-invalid">{{content}}{{error}}</div>',
+            'datetimeContainer' =>
+                '<div class="form-group {{formGroupPosition}}{{type}}{{required}}" role="group" ' .
+                    'aria-labelledby="{{groupId}}">{{content}}</div>',
+            'datetimeContainerError' =>
+                '<div class="form-group {{formGroupPosition}}{{type}}{{required}} is-invalid" ' .
+                    'role="group" aria-labelledby="{{groupId}}">{{content}}{{error}}</div>',
+            'datetimeLabel' => '<span id="{{groupId}}" class="sr-only">{{text}}{{tooltip}}</span>',
+            'radioContainer' =>
+                '<div class="form-group {{formGroupPosition}}{{type}}{{required}}" role="group" ' .
+                    'aria-labelledby="{{groupId}}">{{content}}</div>',
+            'radioContainerError' =>
+                '<div class="form-group {{formGroupPosition}}{{type}}{{required}} is-invalid" ' .
+                    'role="group" aria-labelledby="{{groupId}}">{{content}}{{error}}</div>',
+            'radioLabel' => '<span id="{{groupId}}" class="sr-only">{{text}}{{tooltip}}</span>',
+            'multicheckboxContainer' =>
+                '<div class="form-group {{formGroupPosition}}{{type}}{{required}}" role="group" ' .
+                    'aria-labelledby="{{groupId}}">{{content}}</div>',
+            'multicheckboxContainerError' =>
+                '<div class="form-group {{formGroupPosition}}{{type}}{{required}} is-invalid" ' .
+                    'role="group" aria-labelledby="{{groupId}}">{{content}}{{error}}</div>',
+            'multicheckboxLabel' => '<span id="{{groupId}}" class="sr-only">{{text}}{{tooltip}}</span>',
         ],
         'horizontal' => [
-            'label' => '<label class="control-label %s"{{attrs}}>{{text}}{{tooltip}}</label>',
+            'label' => '<label class="col-form-label %s"{{attrs}}>{{text}}{{tooltip}}</label>',
+            'fileLabel' => '<label class="col-form-label pt-1 %s"{{attrs}}>{{text}}{{tooltip}}</label>',
             'formGroup' => '{{label}}<div class="%s">{{input}}{{error}}{{help}}</div>',
-            'checkboxFormGroup' => '<div class="%s"><div class="checkbox">{{label}}</div>{{error}}{{help}}</div>',
-            'submitContainer' => '<div class="form-group"><div class="%s">{{content}}</div></div>',
-            'inputContainer' => '<div class="form-group {{type}}{{required}}">{{content}}</div>',
-            'inputContainerError' => '<div class="form-group {{type}}{{required}} has-error">{{content}}</div>',
-            'checkboxContainer' => '<div class="form-group{{required}}">{{content}}</div>',
-            'checkboxContainerError' => '<div class="form-group{{required}} has-error">{{content}}</div>',
-            'radioContainer' => '<div class="form-group{{required}}">{{content}}</div>',
-            'radioContainerError' => '<div class="form-group{{required}} has-error">{{content}}</div>',
-        ]
+            'customFileFormGroup' =>
+                '<div class="%s"><div class="custom-file {{invalid}}">{{input}}{{label}}</div>{{error}}{{help}}</div>',
+            'customFileInputGroupFormGroup' => '<div class="%s">{{input}}{{error}}{{help}}</div>',
+            'checkboxFormGroup' =>
+                '<div class="%s"><div class="form-check">{{input}}{{label}}{{error}}{{help}}</div></div>',
+            'customCheckboxFormGroup' => '<div class="%s"><div class="custom-control custom-checkbox">' .
+                    '{{input}}{{label}}{{error}}{{help}}</div></div>',
+            'datetimeContainer' => '<div class="form-group row {{type}}{{required}}" role="group" ' .
+                    'aria-labelledby="{{groupId}}">{{content}}</div>',
+            'datetimeContainerError' =>
+                '<div class="form-group row {{formGroupPosition}}{{type}}{{required}} is-invalid" ' .
+                    'role="group" aria-labelledby="{{groupId}}">{{content}}</div>',
+            'datetimeLabel' => '<label id="{{groupId}}" class="col-form-label %s">{{text}}{{tooltip}}</label>',
+            'checkboxInlineFormGroup' => '<div class="%s"><div class="form-check form-check-inline">' .
+                    '{{input}}{{label}}</div></div>',
+            'submitContainer' => '<div class="form-group row"><div class="%s">{{content}}</div></div>',
+            'inputContainer' => '<div class="form-group row {{type}}{{required}}">{{content}}</div>',
+            'inputContainerError' =>
+                '<div class="form-group row {{formGroupPosition}}{{type}}{{required}} is-invalid">{{content}}</div>',
+            'checkboxContainer' => '<div class="form-group row {{type}}{{required}}">{{content}}</div>',
+            'checkboxContainerError' =>
+                '<div class="form-group row {{formGroupPosition}}{{type}}{{required}} is-invalid">{{content}}</div>',
+            'radioContainer' => '<div class="form-group row {{type}}{{required}}" role="group" ' .
+                    'aria-labelledby="{{groupId}}">{{content}}</div>',
+            'radioContainerError' =>
+                '<div class="form-group row {{formGroupPosition}}{{type}}{{required}} is-invalid" ' .
+                    'role="group" aria-labelledby="{{groupId}}">{{content}}</div>',
+            'radioLabel' =>
+                '<label id="{{groupId}}" class="col-form-label d-block pt-0 %s">{{text}}{{tooltip}}</label>',
+            'multicheckboxContainer' => '<div class="form-group row {{type}}{{required}}" role="group" ' .
+                    'aria-labelledby="{{groupId}}">{{content}}</div>',
+            'multicheckboxContainerError' =>
+                '<div class="form-group row {{formGroupPosition}}{{type}}{{required}} is-invalid" ' .
+                    'role="group" aria-labelledby="{{groupId}}">{{content}}</div>',
+            'multicheckboxLabel' =>
+                '<label id="{{groupId}}" class="col-form-label d-block pt-0 %s">{{text}}{{tooltip}}</label>',
+        ],
     ];
 
     /**
@@ -89,7 +271,8 @@ class FormHelper extends Helper
      */
     protected $_widgets = [
         'button' => 'BootstrapUI\View\Widget\ButtonWidget',
-        'radio' => ['BootstrapUI\View\Widget\RadioWidget', 'nestingLabel'],
+        'datetime' => 'BootstrapUI\View\Widget\DateTimeWidget',
+        'file' => ['BootstrapUI\View\Widget\FileWidget', 'label'],
         'select' => 'BootstrapUI\View\Widget\SelectBoxWidget',
         'textarea' => 'BootstrapUI\View\Widget\TextareaWidget',
         '_default' => 'BootstrapUI\View\Widget\BasicWidget',
@@ -105,26 +288,23 @@ class FormHelper extends Helper
     {
         $this->_defaultConfig = [
             'align' => 'default',
-            'errorClass' => null,
+            'errorClass' => 'is-invalid',
             'grid' => [
                 'left' => 2,
-                'middle' => 6,
-                'right' => 4
+                'middle' => 10,
+                'right' => 0,
             ],
             'templates' => $this->_templates + $this->_defaultConfig['templates'],
         ] + $this->_defaultConfig;
 
         if (isset($this->_defaultConfig['templateSet'])) {
-            $this->_defaultConfig['templateSet'] = Hash::merge($this->_templateSet, $this->_defaultConfig['templateSet']);
+            $templateSet = Hash::merge($this->_templateSet, $this->_defaultConfig['templateSet']);
         } else {
-            $this->_defaultConfig['templateSet'] = $this->_templateSet;
+            $templateSet = $this->_templateSet;
         }
+        $this->_defaultConfig['templateSet'] = $templateSet;
 
         $this->_defaultWidgets = $this->_widgets + $this->_defaultWidgets;
-
-        if (method_exists('Cake\View\Helper\FormHelper', 'control')) {
-            $this->_controlMethod = 'control';
-        }
 
         parent::__construct($View, $config);
     }
@@ -132,25 +312,14 @@ class FormHelper extends Helper
     /**
      * Returns an HTML FORM element.
      *
-     * @param mixed $model The context for which the form is being defined. Can
-     *   be an ORM entity, ORM resultset, or an array of meta data. You can use false or null
-     *   to make a model-less form.
+     * @param mixed $context The context for which the form is being defined.
+     *   Can be a ContextInterface instance, ORM entity, ORM resultset, or an
+     *   array of meta data. You can use `null` to make a context-less form.
      * @param array $options An array of html attributes and options.
      * @return string An formatted opening FORM tag.
      */
-    public function create($model = null, array $options = [])
+    public function create($context = null, array $options = []): string
     {
-        // @codeCoverageIgnoreStart
-        if (isset($options['horizontal'])) {
-            if ($options['horizontal'] === true) {
-                $options['horizontal'] = 'horizontal';
-            }
-            $options['align'] = $options['horizontal'];
-            unset($options['horizontal']);
-            trigger_error('The `horizontal` option is deprecated. Use `align` instead.');
-        }
-        // @codeCoverageIgnoreEnd
-
         $options += [
             'class' => null,
             'role' => 'form',
@@ -158,7 +327,7 @@ class FormHelper extends Helper
             'templates' => [],
         ];
 
-        return parent::create($model, $this->_formAlignment($options));
+        return parent::create($context, $this->_formAlignment($options));
     }
 
     /**
@@ -174,8 +343,11 @@ class FormHelper extends Helper
      * @return string A HTML submit button
      * @link http://book.cakephp.org/3.0/en/views/helpers/form.html#creating-buttons-and-submit-elements
      */
-    public function submit($caption = null, array $options = [])
+    public function submit(?string $caption = null, array $options = []): string
     {
+        $options += [
+            'class' => 'primary',
+        ];
         $options = $this->applyButtonClasses($options);
 
         return parent::submit($caption, $options);
@@ -187,38 +359,28 @@ class FormHelper extends Helper
      * Adds extra option besides the ones supported by parent class method:
      * - `append` - Append addon to input.
      * - `prepend` - Prepend addon to input.
+     * - `custom` - Boolean whether to generate custom style checkbox/radio/select/file/range controls.
      * - `inline` - Boolean for generating inline checkbox/radio.
-     * - `help` - Help text of include in the input container.
-     *
-     * @param string $fieldName This should be "Modelname.fieldname".
-     * @param array $options Each type of input takes different options.
-     * @return string Completed form widget.
-     * @deprecated Use control() instead.
-     */
-    public function input($fieldName, array $options = [])
-    {
-        return $this->control($fieldName, $options);
-    }
-
-    /**
-     * Generates a form input element complete with label and wrapper div.
-     *
-     * Adds extra option besides the ones supported by parent class method:
-     * - `append` - Append addon to input.
-     * - `prepend` - Prepend addon to input.
-     * - `inline` - Boolean for generating inline checkbox/radio.
-     * - `help` - Help text of include in the input container.
+     * - `help` - Help text to include in the input container.
+     * - `tooltip` - Tooltip text to include in the control's label.
+     * - `feedbackStyle` - The feedback style to use, `default`, or `tooltip` (will cause `formGroupPosition` to be set
+     *   to `relative` unless explicitly configured otherwise).
+     * - `formGroupPosition` - CSS positioning of form groups, `absolute`, `fixed`, `relative`, `static`, or `sticky`.
      *
      * @param string $fieldName This should be "Modelname.fieldname".
      * @param array $options Each type of input takes different options.
      * @return string Completed form widget.
      */
-    public function control($fieldName, array $options = [])
+    public function control(string $fieldName, array $options = []): string
     {
         $options += [
+            'feedbackStyle' => null,
+            'formGroupPosition' => null,
+            'custom' => false,
             'prepend' => null,
             'append' => null,
             'inline' => null,
+            'nestedInput' => false,
             'type' => null,
             'label' => null,
             'error' => null,
@@ -227,7 +389,8 @@ class FormHelper extends Helper
             'help' => null,
             'tooltip' => null,
             'templates' => [],
-            'templateVars' => []
+            'templateVars' => [],
+            'labelOptions' => true,
         ];
         $options = $this->_parseOptions($fieldName, $options);
 
@@ -240,56 +403,351 @@ class FormHelper extends Helper
         }
 
         switch ($options['type']) {
+            case 'datetime-local':
+            case 'datetime':
+            case 'date':
+            case 'time':
+                $options = $this->_dateTimeOptions($fieldName, $options);
+                break;
+
             case 'checkbox':
-                if (!isset($options['inline'])) {
-                    $options['inline'] = $this->checkClasses($options['type'] . '-inline', (array)$options['label']);
-                }
-
-                if ($options['inline']) {
-                    $options['label'] = $this->injectClasses($options['type'] . '-inline', (array)$options['label']);
-                    if (!isset($newTemplates['checkboxContainer'])) {
-                        $options['templates']['checkboxContainer'] = '{{content}}';
-                    }
-                }
-                unset($options['inline']);
-                break;
-
             case 'radio':
-                if ($options['inline'] && $this->_align !== 'horizontal') {
-                    $options['templates']['formGroup'] = $this->templater()->get('radioInlineFormGroup');
-                }
-                if (!$options['inline']) {
-                    $options['templates']['nestingLabel'] = $this->templater()->get('radioNestingLabel');
-                }
-                break;
-
             case 'select':
-                if (isset($options['multiple']) && $options['multiple'] === 'checkbox') {
-                    $options['type'] = 'multicheckbox';
+            case 'file':
+                $function = '_' . $options['type'] . 'Options';
+                $options = $this->{$function}($fieldName, $options);
+                break;
+
+            case 'range':
+                if ($options['custom']) {
+                    $options['injectFormControl'] = false;
+                    $options = $this->injectClasses('custom-range', $options);
+                }
+                break;
+        }
+
+        $options = $this->_feedbackStyleOptions($fieldName, $options);
+        $options = $this->_helpOptions($fieldName, $options);
+        $options = $this->_tooltipOptions($fieldName, $options);
+
+        if (
+            isset($options['append']) ||
+            isset($options['prepend'])
+        ) {
+            $options['injectErrorClass'] = $this->_config['errorClass'];
+        }
+
+        unset(
+            $options['formGroupPosition'],
+            $options['feedbackStyle'],
+            $options['inline'],
+            $options['nestedInput']
+        );
+
+        if (!in_array($options['type'], ['file', 'multicheckbox', 'radio'], true)) {
+            unset($options['custom']);
+        }
+
+        $result = parent::control($fieldName, $options);
+
+        if ($newTemplates) {
+            $this->templater()->pop();
+        }
+
+        return $result;
+    }
+
+    /**
+     * Modify options for date time controls.
+     *
+     * @param string $fieldName Field name.
+     * @param array $options Options. See `$options` argument of `control()` method.
+     * @return array
+     */
+    protected function _dateTimeOptions(string $fieldName, array $options): array
+    {
+        $options['label']['templateVars']['groupId'] =
+        $options['templateVars']['groupId'] =
+            $this->_domId($fieldName . '-group-label');
+
+        $options['templates']['label'] = $this->templater()->get('datetimeLabel');
+        $options['templates']['inputContainer'] = $this->templater()->get('datetimeContainer');
+        $options['templates']['inputContainerError'] = $this->templater()->get('datetimeContainerError');
+
+        return $options;
+    }
+
+    /**
+     * Modify options for checkbox controls.
+     *
+     * @param string $fieldName Field name.
+     * @param array $options Options. See `$options` argument of `control()` method.
+     * @return array
+     */
+    protected function _checkboxOptions(string $fieldName, array $options): array
+    {
+        if (!$options['custom']) {
+            $options['label'] = $this->injectClasses('form-check-label', (array)$options['label']);
+            $options = $this->injectClasses('form-check-input', $options);
+        } else {
+            $options['label'] = $this->injectClasses('custom-control-label', (array)$options['label']);
+            $options = $this->injectClasses('custom-control-input', $options);
+
+            if ($this->_align === static::ALIGN_HORIZONTAL) {
+                $options['templates']['checkboxFormGroup'] = $this->templater()->get('customCheckboxFormGroup');
+            } else {
+                $options['templates']['checkboxContainer'] = $this->templater()->get('customCheckboxContainer');
+                $containerError = $this->templater()->get('customCheckboxContainerError');
+                $options['templates']['checkboxContainerError'] = $containerError;
+            }
+        }
+
+        if ($this->_align === static::ALIGN_HORIZONTAL) {
+            $options['inline'] = false;
+        }
+
+        if (
+            $options['inline'] ||
+            $this->_align === static::ALIGN_INLINE
+        ) {
+            if (!$options['custom']) {
+                $checkboxContainer = $this->templater()->get('checkboxInlineContainer');
+                $checkboxContainerError = $this->templater()->get('checkboxInlineContainerError');
+            } else {
+                $checkboxContainer = $this->templater()->get('customCheckboxInlineContainer');
+                $checkboxContainerError = $this->templater()->get('customCheckboxInlineContainerError');
+            }
+            $options['templates']['checkboxContainer'] = $checkboxContainer;
+            $options['templates']['checkboxContainerError'] = $checkboxContainerError;
+        }
+
+        if ($options['nestedInput']) {
+            $options['templates']['nestingLabel'] = $this->templater()->get('nestingLabelNestedInput');
+        }
+
+        return $options;
+    }
+
+    /**
+     * Modify options for radio controls.
+     *
+     * @param string $fieldName Field name.
+     * @param array $options Options. See `$options` argument of `control()` method.
+     * @return array
+     */
+    protected function _radioOptions(string $fieldName, array $options): array
+    {
+        if (!$options['custom']) {
+            $options = $this->injectClasses('form-check-input', $options);
+        } else {
+            $options['templates']['radioWrapper'] = $this->templater()->get('customRadioWrapper');
+        }
+
+        $options['label']['templateVars']['groupId'] =
+        $options['templateVars']['groupId'] =
+            $this->_domId($fieldName . '-group-label');
+
+        $options['templates']['label'] = $this->templater()->get('radioLabel');
+
+        if (
+            $options['inline'] ||
+            $this->_align === static::ALIGN_INLINE
+        ) {
+            if (!$options['custom']) {
+                $options['templates']['radioWrapper'] = $this->templater()->get('radioInlineWrapper');
+            } else {
+                $options['templates']['radioWrapper'] = $this->templater()->get('customRadioInlineWrapper');
+            }
+        }
+
+        if ($options['nestedInput']) {
+            $options['templates']['nestingLabel'] = $this->templater()->get('nestingLabelNestedInput');
+        }
+
+        return $options;
+    }
+
+    /**
+     * Modify options for select controls.
+     *
+     * @param string $fieldName Field name.
+     * @param array $options Options. See `$options` argument of `control()` method.
+     * @return array
+     */
+    protected function _selectOptions(string $fieldName, array $options): array
+    {
+        if (isset($options['multiple']) && $options['multiple'] === 'checkbox') {
+            $options['type'] = 'multicheckbox';
+
+            $options['label']['templateVars']['groupId'] =
+            $options['templateVars']['groupId'] =
+                $this->_domId($fieldName . '-group-label');
+
+            $options['templates']['label'] = $this->templater()->get('multicheckboxLabel');
+
+            if (!$options['custom']) {
+                $options = $this->injectClasses('form-check-input', $options);
+            } else {
+                $options['templates']['checkboxWrapper'] = $this->templater()->get('customCheckboxWrapper');
+            }
+
+            if (
+                $options['inline'] ||
+                $this->_align === static::ALIGN_INLINE
+            ) {
+                if (!$options['custom']) {
+                    $wrapper = $this->templater()->get('checkboxInlineWrapper');
                 } else {
-                    if ($options['label'] !== false && strpos($this->getTemplates('label'), 'class=') === false) {
-                        $options['label'] = $this->injectClasses('control-label', (array)$options['label']);
+                    $wrapper = $this->templater()->get('customCheckboxInlineWrapper');
+                }
+                $options['templates']['checkboxWrapper'] = $wrapper;
+            }
+
+            if ($options['nestedInput']) {
+                $options['templates']['nestingLabel'] = $this->templater()->get('nestingLabelNestedInput');
+            }
+        }
+
+        if (
+            $options['custom'] &&
+            $options['type'] !== 'multicheckbox'
+        ) {
+            $options['injectFormControl'] = false;
+            $options = $this->injectClasses('custom-select', $options);
+        }
+
+        return $options;
+    }
+
+    /**
+     * Modify options for file controls.
+     *
+     * @param string $fieldName Field name.
+     * @param array $options Options. See `$options` argument of `control()` method.
+     * @return array
+     */
+    protected function _fileOptions(string $fieldName, array $options): array
+    {
+        if (!$options['custom']) {
+            if ($this->_align === static::ALIGN_HORIZONTAL) {
+                $options['templates']['label'] = $this->templater()->get('fileLabel');
+            }
+        } else {
+            $options['custom'] = true;
+            $options['tooltip'] = null;
+
+            $options['templates']['label'] = $this->templater()->get('customFileLabel');
+            $options['templates']['formGroup'] = $this->templater()->get('customFileFormGroup');
+
+            if ($this->_getContext()->hasError($fieldName)) {
+                $options['templateVars']['invalid'] = $this->_config['errorClass'];
+            }
+
+            if (
+                $options['prepend'] ||
+                $options['append']
+            ) {
+                if ($options['label'] === null) {
+                    $options['label'] = [];
+                }
+                if (
+                    $options['label'] !== false &&
+                    !isset($options['label']['text'])
+                ) {
+                    $text = $fieldName;
+                    if (strpos($text, '.') !== false) {
+                        $fieldElements = explode('.', $text);
+                        $text = array_pop($fieldElements);
                     }
+                    $options['label']['text'] = __(Inflector::humanize(Inflector::underscore($text)));
                 }
-                break;
+                $options['inputGroupLabel'] = $options['label'];
+                $options['label'] = false;
 
-            case 'multiselect':
-                break;
-
-            case 'textarea':
-            default:
-                if ($options['label'] !== false && strpos($this->getTemplates('label'), 'class=') === false) {
-                    $options['label'] = $this->injectClasses('control-label', (array)$options['label']);
-                }
+                $options['templates']['formGroup'] = $this->templater()->get('customFileInputGroupFormGroup');
+                $container = $this->templater()->get('customFileInputGroupContainer');
+                $options['templates']['inputGroupContainer'] = $container;
+            }
         }
 
+        return $options;
+    }
+
+    /**
+     * Modify templates based on error style.
+     *
+     * @param string $fieldName Field name.
+     * @param array $options Options. See `$options` argument of `control()` method.
+     * @return array
+     */
+    protected function _feedbackStyleOptions(string $fieldName, array $options): array
+    {
+        $formGroupPosition = $options['formGroupPosition'] ?: $this->getConfig('formGroupPosition');
+        $feedbackStyle = $options['feedbackStyle'] ?: $this->getConfig('feedbackStyle');
+
+        if (
+            $this->_align === static::ALIGN_INLINE &&
+            $feedbackStyle === null
+        ) {
+            $feedbackStyle = static::FEEDBACK_STYLE_TOOLTIP;
+        }
+
+        if ($feedbackStyle === static::FEEDBACK_STYLE_TOOLTIP) {
+            $options['templates']['error'] = $this->templater()->get('errorTooltip');
+        }
+
+        if (
+            $formGroupPosition === null &&
+            $feedbackStyle === static::FEEDBACK_STYLE_TOOLTIP
+        ) {
+            $formGroupPosition = static::POSITION_RELATIVE;
+        }
+
+        if ($formGroupPosition !== null) {
+            $options['templateVars']['formGroupPosition'] = 'position-' . $formGroupPosition . ' ';
+        }
+
+        return $options;
+    }
+
+    /**
+     * Modify options for control's help.
+     *
+     * @param string $fieldName Field name.
+     * @param array $options Options. See `$options` argument of `control()` method.
+     * @return array
+     */
+    protected function _helpOptions(string $fieldName, array $options): array
+    {
         if ($options['help']) {
-            $options['help'] = $this->templater()->format(
-                'help',
-                ['content' => $options['help']]
-            );
+            if (is_string($options['help'])) {
+                $options['help'] = $this->templater()->format(
+                    'help',
+                    ['content' => $options['help']]
+                );
+            } elseif (is_array($options['help'])) {
+                $options['help'] = $this->templater()->format(
+                    'help',
+                    [
+                        'content' => $options['help']['content'],
+                        'attrs' => $this->templater()->formatAttributes($options['help'], ['class', 'content']),
+                    ]
+                );
+            }
         }
 
+        return $options;
+    }
+
+    /**
+     * Modify options for control's tooltip.
+     *
+     * @param string $fieldName Field name.
+     * @param array $options Options. See `$options` argument of `control()` method.
+     * @return array
+     */
+    protected function _tooltipOptions(string $fieldName, array $options): array
+    {
         if ($options['tooltip']) {
             $tooltip = $this->templater()->format(
                 'tooltip',
@@ -299,14 +757,98 @@ class FormHelper extends Helper
             unset($options['tooltip']);
         }
 
-        $controlMethod = $this->_controlMethod;
-        $result = parent::$controlMethod($fieldName, $options);
+        return $options;
+    }
 
-        if ($newTemplates) {
-            $this->templater()->pop();
+    /**
+     * Creates a set of radio widgets.
+     *
+     * ### Attributes:
+     *
+     * - `value` - Indicates the value when this radio button is checked.
+     * - `label` - Either `false` to disable label around the widget or an array of attributes for
+     *    the label tag. `selected` will be added to any classes e.g. `'class' => 'myclass'` where widget
+     *    is checked
+     * - `hiddenField` - boolean to indicate if you want the results of radio() to include
+     *    a hidden input with a value of ''. This is useful for creating radio sets that are non-continuous.
+     * - `disabled` - Set to `true` or `disabled` to disable all the radio buttons. Use an array of
+     *   values to disable specific radio buttons.
+     * - `empty` - Set to `true` to create an input with the value '' as the first option. When `true`
+     *   the radio label will be 'empty'. Set this option to a string to control the label value.
+     *
+     * @param string $fieldName Name of a field, like this "modelname.fieldname"
+     * @param array|\Traversable $options Radio button options array.
+     * @param array $attributes Array of attributes.
+     * @return string Completed radio widget set.
+     * @link https://book.cakephp.org/3.0/en/views/helpers/form.html#creating-radio-buttons
+     */
+    public function radio(string $fieldName, iterable $options = [], array $attributes = []): string
+    {
+        $attributes = $this->multiInputAttributes($attributes);
+
+        return parent::radio($fieldName, $options, $attributes);
+    }
+
+    /**
+     * Creates a set of checkboxes out of options.
+     *
+     * ### Options
+     *
+     * - `escape` - If true contents of options will be HTML entity encoded. Defaults to true.
+     * - `val` The selected value of the input.
+     * - `class` - When using multiple = checkbox the class name to apply to the divs. Defaults to 'checkbox'.
+     * - `disabled` - Control the disabled attribute. When creating checkboxes, `true` will disable all checkboxes.
+     *   You can also set disabled to a list of values you want to disable when creating checkboxes.
+     * - `hiddenField` - Set to false to remove the hidden field that ensures a value
+     *   is always submitted.
+     * - `label` - Either `false` to disable label around the widget or an array of attributes for
+     *   the label tag. `selected` will be added to any classes e.g. `'class' => 'myclass'` where
+     *   widget is checked
+     *
+     * Can be used in place of a select box with the multiple attribute.
+     *
+     * @param string $fieldName Name attribute of the SELECT
+     * @param array|\Traversable $options Array of the OPTION elements
+     *   (as 'value'=>'Text' pairs) to be used in the checkboxes element.
+     * @param array $attributes The HTML attributes of the select element.
+     * @return string Formatted SELECT element
+     * @see \Cake\View\Helper\FormHelper::select() for supported option formats.
+     */
+    public function multiCheckbox(string $fieldName, iterable $options, array $attributes = []): string
+    {
+        $attributes = $this->multiInputAttributes($attributes);
+
+        return parent::multiCheckbox($fieldName, $options, $attributes);
+    }
+
+    /**
+     * Set options for radio and multi checkbox inputs.
+     *
+     * @param array $attributes Attributes
+     * @return array
+     */
+    protected function multiInputAttributes(array $attributes): array
+    {
+        $classPrefix = 'form-check';
+        if (
+            isset($attributes['custom']) &&
+            $attributes['custom']
+        ) {
+            $classPrefix = 'custom-control';
+        }
+        unset($attributes['custom']);
+
+        $attributes += ['label' => true];
+
+        $attributes = $this->injectClasses($classPrefix . '-input', $attributes);
+        if ($attributes['label'] === true) {
+            $attributes['label'] = [];
+        }
+        if ($attributes['label'] !== false) {
+            $attributes['label'] = $this->injectClasses($classPrefix . '-label', $attributes['label']);
         }
 
-        return $result;
+        return $attributes;
     }
 
     /**
@@ -319,7 +861,7 @@ class FormHelper extends Helper
      *   into the hidden input elements generated for the Security Component.
      * @return string A closing FORM tag.
      */
-    public function end(array $secureAttributes = [])
+    public function end(array $secureAttributes = []): string
     {
         $this->_align = $this->_grid = null;
 
@@ -338,13 +880,13 @@ class FormHelper extends Helper
      * @param array $options Array of HTML attributes.
      * @return string An HTML text input element.
      */
-    public function staticControl($fieldName, array $options = [])
+    public function staticControl(string $fieldName, array $options = []): string
     {
         $options += [
             'escape' => true,
             'required' => false,
             'secure' => true,
-            'hiddenField' => true
+            'hiddenField' => true,
         ];
 
         $secure = $options['secure'];
@@ -358,15 +900,20 @@ class FormHelper extends Helper
 
         $content = $options['escape'] ? h($options['val']) : $options['val'];
         $static = $this->formatTemplate('staticControl', [
-            'content' => $content
+            'content' => $content,
         ]);
 
         if (!$hiddenField) {
             return $static;
         }
 
-        if ($secure === true) {
-            $this->_secure(true, $this->_secureFieldName($options['name']), (string)$options['val']);
+        if ($secure === true && $this->formProtector) {
+            /** @psalm-suppress InternalMethod */
+            $this->formProtector->addField(
+                $options['name'],
+                true,
+                (string)$options['val']
+            );
         }
 
         $options['type'] = 'hidden';
@@ -381,9 +928,9 @@ class FormHelper extends Helper
      *
      * @param string $fieldName The field's name.
      * @param array $options The options for the input element.
-     * @return string The generated input element.
+     * @return string|array The generated input element.
      */
-    protected function _getInput($fieldName, $options)
+    protected function _getInput(string $fieldName, array $options)
     {
         unset($options['help']);
 
@@ -396,7 +943,7 @@ class FormHelper extends Helper
      * @param array $options The options for group template
      * @return string The generated group template
      */
-    protected function _groupTemplate($options)
+    protected function _groupTemplate(array $options): string
     {
         $groupTemplate = $options['options']['type'] . 'FormGroup';
         if (!$this->templater()->get($groupTemplate)) {
@@ -404,10 +951,10 @@ class FormHelper extends Helper
         }
 
         return $this->templater()->format($groupTemplate, [
-            'input' => isset($options['input']) ? $options['input'] : [],
+            'input' => $options['input'] ?? [],
             'label' => $options['label'],
             'error' => $options['error'],
-            'templateVars' => isset($options['options']['templateVars']) ? $options['options']['templateVars'] : [],
+            'templateVars' => $options['options']['templateVars'] ?? [],
             'help' => $options['options']['help'],
         ]);
     }
@@ -418,7 +965,7 @@ class FormHelper extends Helper
      * @param array $options The options for input container template.
      * @return string The generated input container template.
      */
-    protected function _inputContainerTemplate($options)
+    protected function _inputContainerTemplate(array $options): string
     {
         $inputContainerTemplate = $options['options']['type'] . 'Container' . $options['errorSuffix'];
         if (!$this->templater()->get($inputContainerTemplate)) {
@@ -430,7 +977,7 @@ class FormHelper extends Helper
             'error' => $options['error'],
             'required' => $options['options']['required'] ? ' required' : '',
             'type' => $options['options']['type'],
-            'templateVars' => isset($options['options']['templateVars']) ? $options['options']['templateVars'] : [],
+            'templateVars' => $options['options']['templateVars'] ?? [],
             'help' => $options['options']['help'],
         ]);
     }
@@ -442,7 +989,7 @@ class FormHelper extends Helper
      * @param array $options Options list.
      * @return array Options
      */
-    protected function _parseOptions($fieldName, $options)
+    protected function _parseOptions(string $fieldName, array $options): array
     {
         $options = parent::_parseOptions($fieldName, $options);
         $options += ['id' => $this->_domId($fieldName)];
@@ -459,7 +1006,7 @@ class FormHelper extends Helper
      * @param array $options Options.
      * @return array Modified options.
      */
-    protected function _formAlignment($options)
+    protected function _formAlignment(array $options): array
     {
         if (!$options['align']) {
             $options['align'] = $this->_detectFormAlignment($options);
@@ -467,13 +1014,15 @@ class FormHelper extends Helper
 
         if (is_array($options['align'])) {
             $this->_grid = $options['align'];
-            $options['align'] = 'horizontal';
-        } elseif ($options['align'] === 'horizontal') {
+            $options['align'] = static::ALIGN_HORIZONTAL;
+        } elseif ($options['align'] === static::ALIGN_HORIZONTAL) {
             $this->_grid = $this->getConfig('grid');
         }
 
-        if (!in_array($options['align'], ['default', 'horizontal', 'inline'])) {
-            throw new InvalidArgumentException('Invalid `align` option value.');
+        if (!in_array($options['align'], static::ALIGN_TYPES)) {
+            throw new InvalidArgumentException(
+                'Invalid valid for `align` option. Valid values are: ' . implode(', ', static::ALIGN_TYPES)
+            );
         }
 
         $this->_align = $options['align'];
@@ -502,8 +1051,20 @@ class FormHelper extends Helper
         $offsetedGridClass = implode(' ', [$this->_gridClass('left', true), $this->_gridClass('middle')]);
 
         $templates['label'] = sprintf($templates['label'], $this->_gridClass('left'));
+        $templates['datetimeLabel'] = sprintf($templates['datetimeLabel'], $this->_gridClass('left'));
+        $templates['radioLabel'] = sprintf($templates['radioLabel'], $this->_gridClass('left'));
+        $templates['fileLabel'] = sprintf($templates['fileLabel'], $this->_gridClass('left'));
+        $templates['multicheckboxLabel'] = sprintf($templates['multicheckboxLabel'], $this->_gridClass('left'));
         $templates['formGroup'] = sprintf($templates['formGroup'], $this->_gridClass('middle'));
-        foreach (['checkboxFormGroup', 'submitContainer'] as $value) {
+        $containers = [
+            'customFileFormGroup',
+            'customFileInputGroupFormGroup',
+            'checkboxFormGroup',
+            'checkboxInlineFormGroup',
+            'customCheckboxFormGroup',
+            'submitContainer',
+        ];
+        foreach ($containers as $value) {
             $templates[$value] = sprintf($templates[$value], $offsetedGridClass);
         }
 
@@ -519,11 +1080,15 @@ class FormHelper extends Helper
      * @param bool $offset If true, will append `offset-` to the class.
      * @return string Classes.
      */
-    protected function _gridClass($position, $offset = false)
+    protected function _gridClass(string $position, bool $offset = false): string
     {
+        if ($this->_grid === null) {
+            return '';
+        }
+
         $class = 'col-%s-';
         if ($offset) {
-            $class .= 'offset-';
+            $class = 'offset-%s-';
         }
 
         if (isset($this->_grid[$position])) {
@@ -546,9 +1111,9 @@ class FormHelper extends Helper
      * @param array $options Options.
      * @return string Form alignment type. One of `default`, `horizontal` or `inline`.
      */
-    protected function _detectFormAlignment($options)
+    protected function _detectFormAlignment(array $options): string
     {
-        foreach (['horizontal', 'inline'] as $align) {
+        foreach ([static::ALIGN_HORIZONTAL, static::ALIGN_INLINE] as $align) {
             if ($this->checkClasses('form-' . $align, (array)$options['class'])) {
                 return $align;
             }

@@ -1,8 +1,8 @@
 <?php
+declare(strict_types=1);
 
 namespace BootstrapUI\Test\TestCase\View\Helper;
 
-use BootstrapUI\View\Helper\BreadcrumbsHelper;
 use BootstrapUI\View\Helper\HtmlHelper;
 use Cake\TestSuite\TestCase;
 use Cake\View\View;
@@ -19,21 +19,15 @@ class HtmlHelperTest extends TestCase
      */
     public $Html;
 
-    /**
-     * @var BreadcrumbsHelper
-     */
-    public $Breadcrumbs;
-
-    public function setUp()
+    public function setUp(): void
     {
         parent::setUp();
 
         $this->View = new View();
         $this->Html = new HtmlHelper($this->View);
-        $this->Breadcrumbs = new BreadcrumbsHelper($this->View);
     }
 
-    public function tearDown()
+    public function tearDown(): void
     {
         parent::tearDown();
         unset($this->Html, $this->View);
@@ -43,9 +37,17 @@ class HtmlHelperTest extends TestCase
     {
         $result = $this->Html->badge('foo');
         $expected = [
-            'span' => ['class' => 'badge'],
+            'span' => ['class' => 'badge badge-secondary'],
             'foo',
-            '/span'
+            '/span',
+        ];
+        $this->assertHtml($expected, $result);
+
+        $result = $this->Html->badge('foo', ['class' => 'primary']);
+        $expected = [
+            'span' => ['class' => 'badge-primary badge'],
+            'foo',
+            '/span',
         ];
         $this->assertHtml($expected, $result);
     }
@@ -54,22 +56,22 @@ class HtmlHelperTest extends TestCase
     {
         $result = $this->Html->icon('foo');
         $expected = [
-            'i' => ['class' => 'glyphicon glyphicon-foo'],
-            '/i'
+            'i' => ['class' => 'fas fa-foo'],
+            '/i',
         ];
         $this->assertHtml($expected, $result);
 
         $result = $this->Html->icon('foo', ['iconSet' => 'fa']);
         $expected = [
             'i' => ['class' => 'fa fa-foo'],
-            '/i'
+            '/i',
         ];
         $this->assertHtml($expected, $result);
 
-        $result = $this->Html->icon('foo', ['tag' => 'span']);
+        $result = $this->Html->icon('foo', ['tag' => 'span', 'size' => 'lg']);
         $expected = [
-            'span' => ['class' => 'glyphicon glyphicon-foo'],
-            '/span'
+            'span' => ['class' => 'fas fa-foo fa-lg'],
+            '/span',
         ];
         $this->assertHtml($expected, $result);
     }
@@ -78,38 +80,26 @@ class HtmlHelperTest extends TestCase
     {
         $result = $this->Html->label('foo');
         $expected = [
-            'span' => ['class' => 'label label-default'],
+            'span' => ['class' => 'badge badge-secondary'],
             'foo',
-            '/span'
+            '/span',
         ];
         $this->assertHtml($expected, $result);
 
-        $result = $this->Html->label('foo', 'warning');
+        $result = $this->Html->label('foo', ['type' => 'primary']);
         $expected = [
-            'span' => ['class' => 'label label-warning'],
+            'span' => ['class' => 'badge-primary badge'],
             'foo',
-            '/span'
+            '/span',
         ];
         $this->assertHtml($expected, $result);
 
-        $result = $this->Html->label('foo', ['type' => 'custom']);
+        $result = $this->Html->label('foo', 'primary');
         $expected = [
-            'span' => ['class' => 'label label-custom'],
+            'span' => ['class' => 'badge-primary badge'],
             'foo',
-            '/span'
+            '/span',
         ];
         $this->assertHtml($expected, $result);
-    }
-
-    public function testCrumbList()
-    {
-        $result = $this->Breadcrumbs
-            ->add('jadb')
-            ->add('admad')
-            ->add('joe')
-            ->render();
-
-        $expected = '<ol class="breadcrumb"><li><span>jadb</span></li><li><span>admad</span></li><li><span>joe</span></li></ol>';
-        $this->assertEquals($expected, $result);
     }
 }

@@ -7,7 +7,11 @@ use Cake\Core\Plugin;
 use Cake\Datasource\ConnectionManager;
 use Cake\I18n\I18n;
 
-require_once 'vendor/autoload.php';
+if (is_file('vendor/autoload.php')) {
+    require_once 'vendor/autoload.php';
+} else {
+    require_once dirname(__DIR__) . '/vendor/autoload.php';
+}
 
 if (!defined('DS')) {
     define('DS', DIRECTORY_SEPARATOR);
@@ -48,20 +52,20 @@ mb_internal_encoding('UTF-8');
 
 Configure::write('debug', true);
 Configure::write('App', [
-    'namespace' => 'App',
+    'namespace' => 'TestApp',
     'encoding' => 'UTF-8',
     'base' => false,
     'baseUrl' => false,
     'dir' => 'src',
     'webroot' => WEBROOT_DIR,
-    'www_root' => WWW_ROOT,
+    'wwwRoot' => WWW_ROOT,
     'fullBaseUrl' => 'http://localhost',
     'imageBaseUrl' => 'img/',
     'jsBaseUrl' => 'js/',
     'cssBaseUrl' => 'css/',
     'paths' => [
         'plugins' => [dirname(APP) . DS . 'plugins' . DS],
-        'templates' => [APP . 'Template' . DS]
+        'templates' => [TEST_APP . 'templates' . DS]
     ]
 ]);
 
@@ -78,4 +82,10 @@ Cache::setConfig([
     ]
 ]);
 
-Plugin::load('BootstrapUI', ['path' => ROOT . DS]);
+if (!getenv('db_dsn')) {
+    putenv('db_dsn=sqlite:///:memory:');
+}
+ConnectionManager::setConfig('test', ['url' => getenv('db_dsn')]);
+
+Plugin::getCollection()->add(new \BootstrapUI\Plugin(['path' => ROOT . DS]));
+Plugin::getCollection()->add(new \Bake\Plugin());

@@ -1,7 +1,8 @@
 <?php
+declare(strict_types=1);
+
 namespace BootstrapUI\View\Widget;
 
-use BootstrapUI\View\Widget\InputgroupTrait;
 use Cake\View\Form\ContextInterface;
 
 class SelectBoxWidget extends \Cake\View\Widget\SelectBoxWidget
@@ -83,7 +84,7 @@ class SelectBoxWidget extends \Cake\View\Widget\SelectBoxWidget
      * @return string A generated select box.
      * @throws \RuntimeException when the name attribute is empty.
      */
-    public function render(array $data, ContextInterface $context)
+    public function render(array $data, ContextInterface $context): string
     {
         return $this->_withInputGroup($data, $context);
     }

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace BootstrapUI\View;
 
@@ -16,12 +17,12 @@ trait UIViewTrait
      *      - If not set or true will use the plugin's layout
      *      - If a layout name passed it will be used
      *      - If false do nothing (will keep your layout)
-     *
      * @return void
      */
-    public function initializeUI(array $options = [])
+    public function initializeUI(array $options = []): void
     {
-        if ((!isset($options['layout']) || $options['layout'] === true) &&
+        if (
+            (!isset($options['layout']) || $options['layout'] === true) &&
             $this->layout === 'default'
         ) {
             $this->layout = 'BootstrapUI.default';
@@ -29,12 +30,14 @@ trait UIViewTrait
             $this->layout = $options['layout'];
         }
 
-        $this->loadHelper('Html', ['className' => 'BootstrapUI.Html']);
-        $this->loadHelper('Form', ['className' => 'BootstrapUI.Form']);
-        $this->loadHelper('Flash', ['className' => 'BootstrapUI.Flash']);
-        $this->loadHelper('Paginator', ['className' => 'BootstrapUI.Paginator']);
-        if (class_exists('\Cake\View\Helper\BreadcrumbsHelper')) {
-            $this->loadHelper('Breadcrumbs', ['className' => 'BootstrapUI.Breadcrumbs']);
-        }
+        $helpers = [
+            'Html' => ['className' => 'BootstrapUI.Html'],
+            'Form' => ['className' => 'BootstrapUI.Form'],
+            'Flash' => ['className' => 'BootstrapUI.Flash'],
+            'Paginator' => ['className' => 'BootstrapUI.Paginator'],
+            'Breadcrumbs' => ['className' => 'BootstrapUI.Breadcrumbs'],
+        ];
+
+        $this->helpers = array_merge($helpers, $this->helpers);
     }
 }

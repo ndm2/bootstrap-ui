@@ -1,2 +1,31 @@
 vendor/
 composer.lock
+node_modules
+.phpunit.result.cache
+
+# Ignore assets, except some css
+webroot/css/*
+webroot/js/*
+!webroot/css/cover.css
+!webroot/css/dashboard.css
+!webroot/css/signin.css
+
+# Tool specific files #
+#######################
+# vim
+*~
+*.swp
+*.swo
+# sublime text & textmate
+*.sublime-*
+*.stTheme.cache
+*.tmlanguage.cache
+*.tmPreferences.cache
+# Eclipse
+.settings/*
+# JetBrains, aka PHPStorm, IntelliJ IDEA
+.idea/*
+# NetBeans
+nbproject/*
+# Visual Studio Code
+.vscode
